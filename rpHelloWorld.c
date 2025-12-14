@@ -10,8 +10,6 @@
 
 static inline void goto_app_A() {
 
-    // In an assembly snippet . . .
-    // Set VTOR register, set stack pointer, and jump to reset
     asm volatile (
     "mov r0, %[start]\n"
     "ldr r1, =%[vtable]\n"
@@ -27,8 +25,6 @@ static inline void goto_app_A() {
 
 static inline void goto_app_B() {
 
-    // In an assembly snippet . . .
-    // Set VTOR register, set stack pointer, and jump to reset
     asm volatile (
     "mov r0, %[start]\n"
     "ldr r1, =%[vtable]\n"
