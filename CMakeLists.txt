@@ -28,7 +28,9 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(rpHelloWorld C CXX ASM)
+project(qteloader C CXX ASM)
+set(TARGET_NAME "qteloader")
+
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
@@ -40,31 +42,27 @@ add_compile_options(-Wall
         -Os)
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(rpHelloWorld rpHelloWorld.c )
+add_executable(${TARGET_NAME} qteloader.c )
 
-pico_set_program_name(rpHelloWorld "rpHelloWorld")
-pico_set_program_version(rpHelloWorld "0.1")
+# pico_set_program_name(${TARGET_NAME} "qteloader")
+# pico_set_program_version(${TARGET_NAME} "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(rpHelloWorld 0)
-pico_enable_stdio_usb(rpHelloWorld 0)
+pico_enable_stdio_uart(${TARGET_NAME} 0)
+pico_enable_stdio_usb(${TARGET_NAME} 0)
 
-pico_set_linker_script(rpHelloWorld ${CMAKE_CURRENT_SOURCE_DIR}/bootloader_memmap.ld)
+pico_set_linker_script(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/bootloader_memmap.ld)
 
 # Add the standard library to the build
-target_link_libraries(rpHelloWorld
+target_link_libraries(${TARGET_NAME}
         pico_stdlib 
-        pico_bootsel_via_double_reset 
-        hardware_dma 
         hardware_uart 
-        hardware_flash 
-        hardware_watchdog 
-        hardware_pwm)
+        hardware_flash )
 
 # Add the standard include files to the build
-target_include_directories(rpHelloWorld PRIVATE
+target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-pico_add_extra_outputs(rpHelloWorld)
+pico_add_extra_outputs(${TARGET_NAME})
 
