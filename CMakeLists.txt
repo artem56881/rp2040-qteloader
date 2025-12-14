@@ -42,7 +42,11 @@ add_compile_options(-Wall
         -Os)
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(${TARGET_NAME} qteloader.c )
+add_executable(${TARGET_NAME}
+                qteloader.c
+                drivers/st7735.c
+                drivers/fonts.c
+                )
 
 # pico_set_program_name(${TARGET_NAME} "qteloader")
 # pico_set_program_version(${TARGET_NAME} "0.1")
@@ -56,8 +60,10 @@ pico_set_linker_script(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/bootloader_mem
 # Add the standard library to the build
 target_link_libraries(${TARGET_NAME}
         pico_stdlib 
-        hardware_uart 
-        hardware_flash )
+        hardware_flash
+        hardware_dma
+        hardware_spi
+        )
 
 # Add the standard include files to the build
 target_include_directories(${TARGET_NAME} PRIVATE
