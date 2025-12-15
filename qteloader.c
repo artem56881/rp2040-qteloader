@@ -59,6 +59,7 @@ int main()
     ST7735_Init();
     ST7735_SetRotation(3);
     ST7735_FillScreen(background_color);
+    ST7735_BacklightOn();
     ST7735_DrawRectFill(0, 0, 128, 160, background_color);
     ST7735_DrawString(10, 10, "Tracer", Font_7x10, draw_color);
     ST7735_DrawString(10, 30, "Tetris", Font_7x10, draw_color);

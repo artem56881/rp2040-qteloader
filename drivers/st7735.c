@@ -81,7 +81,7 @@ static void ST7735_SPI_Init()
 
     gpio_put(PIN_LCD_CS, 1);
     gpio_put(PIN_LCD_DC, 1);
-    gpio_put(PIN_LCD_BL, 1); // Включить подсветку
+    // gpio_put(PIN_LCD_BL, 1); // Включить подсветку
 }
 
 static void ST7735_Reset()
