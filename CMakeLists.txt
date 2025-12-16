@@ -51,11 +51,11 @@ add_executable(${TARGET_NAME}
 # pico_set_program_name(${TARGET_NAME} "qteloader")
 # pico_set_program_version(${TARGET_NAME} "0.1")
 
+pico_set_linker_script(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/bootloader_memmap.ld)
+
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(${TARGET_NAME} 0)
-pico_enable_stdio_usb(${TARGET_NAME} 0)
-
-pico_set_linker_script(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/bootloader_memmap.ld)
+pico_enable_stdio_usb(${TARGET_NAME} 1)
 
 # Add the standard library to the build
 target_link_libraries(${TARGET_NAME}
