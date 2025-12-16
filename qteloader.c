@@ -5,6 +5,8 @@
 #include "hardware/sync.h"
 #include <string.h>
 
+extern uint8_t __nvs_start__;
+
 #define background_color ST7735_BLACK
 #define draw_color ST7735_WHITE
 
@@ -13,18 +15,19 @@
 #define down_pin 12
 #define scan_pin 15
 
-#define FLASH_SIZE_KB 4096          // flash chip size in kb. Typical is 2048, 4096, 8192, 16384. (2048 for pico)
+#define FLASH_SIZE_KB 4096          // flash chip size in kilobytes. Typical is 2048, 4096, 8192, 16384. (2048 for pico)
 
 #define NUMBER_OF_APPS 10
 
-#define BOOTLOADER_FLASH_SIZE 128   // kb
+#define BOOTLOADER_FLASH_SIZE 128   // kilobytes
 
-#define FLASH_SECTOR_SIZE 4096
-#define FLASH_PAGE_SIZE   256       //bytes
+#define NVC_SECTOR_SIZE 4096        //bytes
+#define NVC_PAGE_SIZE   256         //bytes
 #define NVS_SIZE 4096               //bytes
 
-#define NVS_FLASH_OFFSET (BOOTLOADER_FLASH_SIZE * 1024 - NVS_SIZE)
-#define NVS_FLASH_ADDR (XIP_BASE + NVS_FLASH_OFFSET)
+#define NVS_FLASH_ADDR   ((uint32_t)&__nvs_start__)
+#define NVS_FLASH_OFFSET (NVS_FLASH_ADDR - XIP_BASE)
+
 
 #define NVS_MAGIC 0xA55A1234
 
@@ -33,55 +36,62 @@ static int program_addreses[NUMBER_OF_APPS] = {-1, -1, -1, -1, -1, -1, -1, -1, -
 typedef struct {
     uint32_t magic;
     int32_t program_addresses[NUMBER_OF_APPS];
-} nvs_t;
+    uint8_t padding[256 - (sizeof(uint32_t) + (sizeof(int32_t) * NUMBER_OF_APPS))];
+} __attribute__((aligned(256))) nvs_t;
 
 const nvs_t *nvs_flash = (const nvs_t *)NVS_FLASH_ADDR;
 
-void draw_app_list(){
+void draw_app_list(int apps_found){
     for(int i = 0; i < NUMBER_OF_APPS; i++){
         if(program_addreses[i] == -1){
             return;
         }
         else{
-        char app_address_string[40];
-        snprintf(app_address_string, sizeof(app_address_string), "%d", program_addreses[i]);
-        ST7735_DrawString(10, 21*i+10, app_address_string, Font_7x10, draw_color);
+            char app_address_string[40];
+            snprintf(app_address_string, sizeof(app_address_string), "%d", program_addreses[i]);
+            ST7735_DrawString(10, 21*i+10, app_address_string, Font_7x10, draw_color);
+            char apps_on_flash_string[24];
+            snprintf(apps_on_flash_string, sizeof(apps_on_flash_string), "%s%d", "apps on flash: ", apps_found);
+            ST7735_DrawString(0, 115, apps_on_flash_string, Font_7x10, draw_color);
         }
     }
 }
 
-void load_program_addresses_from_flash(void) {
+int load_program_addresses_from_flash(void) {
+    printf("1\n");
     if (nvs_flash->magic == NVS_MAGIC) {
+        printf("2\n");
         memcpy(program_addreses,
                nvs_flash->program_addresses,
                sizeof(program_addreses));
-    } else {
+    } 
+    else {
+        printf("3\n");
         for (int i = 0; i < NUMBER_OF_APPS; i++)
             program_addreses[i] = -1;
     }
-    char apps_on_flash_string[24];
-    snprintf(apps_on_flash_string, sizeof(apps_on_flash_string), "%s%d", "apps on flash: ", sizeof(program_addreses)/sizeof(program_addreses[0]));
-    ST7735_DrawString(0, 115, apps_on_flash_string, Font_7x10, draw_color);
-    draw_app_list();
-
+    int apps_found = 0;
+    for(int i = 0; i < NUMBER_OF_APPS; i++){
+        if(program_addreses[i] != -1){
+            apps_found++;
+        }
+    }
+    return apps_found;
 }
 
 void save_program_addresses_to_flash(void) {
-    nvs_t nvs;
-
-    nvs.magic = NVS_MAGIC;
-    memcpy(nvs.program_addresses,
-           program_addreses,
-           sizeof(program_addreses));
+    static nvs_t nvs_buffer __attribute__((aligned(256))); 
+    
+    nvs_buffer.magic = NVS_MAGIC;
+    memcpy(nvs_buffer.program_addresses, program_addreses, sizeof(program_addreses));
 
     uint32_t ints = save_and_disable_interrupts();
-
-    flash_range_erase(NVS_FLASH_OFFSET, FLASH_SECTOR_SIZE);
-    flash_range_program(NVS_FLASH_OFFSET,
-                        (uint8_t *)&nvs,
-                        sizeof(nvs));
+    
+    flash_range_erase(NVS_FLASH_OFFSET, NVC_SECTOR_SIZE);
+    flash_range_program(NVS_FLASH_OFFSET, (uint8_t *)&nvs_buffer, sizeof(nvs_buffer));
 
     restore_interrupts(ints);
+    printf("PROGRAM SAVED ON FLASH\n");
 }
 
 void draw_brim(int program_pointer, uint16_t color) {
@@ -102,7 +112,7 @@ void add_new_app_address(int app_address) {
     }
 }
 
-void scan_flash_for_executables(){
+int scan_flash_for_executables(){
     int executables_found = 0;
     for (int i = 1000; i < FLASH_SIZE_KB * 1024; i++) {
         uint8_t *flash_target_contents = (uint8_t *) (XIP_BASE + i + 0xD4);
@@ -116,7 +126,8 @@ void scan_flash_for_executables(){
                 executables_found += 1;
             }
     }
-    // save_program_addresses_to_flash();
+    save_program_addresses_to_flash();
+    return executables_found;
 
 }
 
@@ -158,13 +169,11 @@ void init_button(uint pin) {
 
 int main() {
     stdio_init_all();
-
+    // sleep_ms(5000);
     init_button(up_pin);
     init_button(down_pin);
     init_button(ok_pin);
     init_button(scan_pin);
-
-    // load_program_addresses_from_flash();
 
     int program_pointer = 0;
     ST7735_Init();
@@ -173,10 +182,14 @@ int main() {
     ST7735_BacklightOn();
     ST7735_DrawRectFill(0, 0, 128, 160, background_color);
 
+    int apps_found_in_flash = load_program_addresses_from_flash();
+    draw_app_list(apps_found_in_flash);
+
     draw_brim(program_pointer, draw_color);
     while (true)
     {
         printf("running\n");
+        sleep_ms(100);
         if(!gpio_get(up_pin) && (program_pointer != 0)) {
             sleep_ms(100);
             draw_brim(program_pointer, background_color);
@@ -193,9 +206,11 @@ int main() {
         
         if(!gpio_get(scan_pin)) {
             ST7735_DrawRectFill(0, 115, 128, 10, background_color);
-            scan_flash_for_executables();
-            // load_program_addresses_from_flash();
-            draw_app_list();
+            ST7735_DrawString(0, 115, "scanning...", Font_7x10, draw_color);
+            int apps_found = scan_flash_for_executables();
+            ST7735_DrawRectFill(0, 115, 128, 10, background_color);
+
+            draw_app_list(apps_found);
 
 
             sleep_ms(100);
